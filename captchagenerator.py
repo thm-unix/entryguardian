@@ -24,37 +24,47 @@ Captcha = namedtuple('Captcha', 'problem solution')
 Result = namedtuple('Result', 'filename solution')
 
 class CaptchaGenerator:
-	def generate_problem(self):
-		lhs = random.randint(1, 10)
-		rhs = random.randint(1, 10)
-		operator = random.choice(('+', '-', '*'))
-		problem = f'{lhs} {operator} {rhs}'
-		return Captcha(problem, eval(problem))
+    def generate_problem(self):
+        lhs = random.randint(1, 10)
+        rhs = random.randint(1, 10)
+        operator = random.choice(('+', '-', '*'))
+        problem = f'{lhs} {operator} {rhs}'
+        return Captcha(problem, eval(problem))
+    
+    def random_color(self):
+        return (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
 
-	def generate_picture(self):
-		image = Image.new(
-			'RGB', 
-			(config.PIC_WIDTH, config.PIC_HEIGHT),
-			config.BG_COLOR
-		)
-		draw = ImageDraw.Draw(image)
-		captcha = self.generate_problem()
-		font = ImageFont.truetype(config.FONT_PATH,
-								  config.FONT_SIZE)
-		
-		text_width = draw.textlength(captcha.problem, font)
-		x = (config.PIC_WIDTH - text_width) / 2
-		y = (config.PIC_HEIGHT - config.FONT_SIZE) / 2
-		draw.text((x, y),
-				  captcha.problem,
-				  font=font,
-				  fill=config.FG_COLOR)
-		
-		for x in range(config.PIC_WIDTH):
-			for y in range(config.PIC_HEIGHT):
-				if random.random() < config.NOISE_LEVEL / 100:
-					draw.point((x, y), fill=config.NOISE_COLOR)
+    def generate_picture(self):
 
-		_, path = tempfile.mkstemp(suffix='.png')
-		image.save(path)
-		return Result(path, captcha.solution)
+        bg_color = self.random_color()
+        fg_color = self.random_color()
+        noise_color = self.random_color()
+
+        while sum(bg_color) - sum(fg_color) < 100:
+            fg_color = self.random_color()
+        
+        image = Image.new(
+            'RGB', 
+            (config.PIC_WIDTH, config.PIC_HEIGHT),
+            bg_color
+        )
+        draw = ImageDraw.Draw(image)
+        captcha = self.generate_problem()
+        font = ImageFont.truetype(config.FONT_PATH,
+                                  config.FONT_SIZE)
+        
+        text_width = draw.textlength(captcha.problem, font)
+        x = (config.PIC_WIDTH - text_width) / 2
+        y = (config.PIC_HEIGHT - config.FONT_SIZE) / 2
+        draw.text((x, y),
+                  captcha.problem,
+                  font=font,
+                  fill=fg_color)
+        
+        for x in range(config.PIC_WIDTH):
+            for y in range(config.PIC_HEIGHT):
+                if random.random() < config.NOISE_LEVEL / 100:
+                    draw.point((x, y), fill=noise_color)
+        _, path = tempfile.mkstemp(suffix='.png')
+        image.save(path)
+        return Result(path, captcha.solution)
