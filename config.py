@@ -1,0 +1,9 @@
+TOKEN = ''
+FONT_PATH = '/usr/share/fonts/TTF/SimpleHandmade.ttf'
+FONT_SIZE = 144
+PIC_WIDTH = 300
+PIC_HEIGHT = 140
+BG_COLOR = 'cyan'
+FG_COLOR = 'black'
+NOISE_LEVEL = 30
+NOISE_COLOR = 'black'
