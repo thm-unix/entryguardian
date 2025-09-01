@@ -23,6 +23,11 @@ import tempfile
 Captcha = namedtuple('Captcha', 'problem solution')
 Result = namedtuple('Result', 'filename solution')
 
+RED_FACTOR = 0.299
+GREEN_FACTOR = 0.587
+BLUE_FACTOR = 0.114
+THRESHOLD = 150
+
 class CaptchaGenerator:
     def generate_problem(self):
         lhs = random.randint(1, 10)
@@ -32,16 +37,21 @@ class CaptchaGenerator:
         return Captcha(problem, eval(problem))
     
     def random_color(self):
-        return (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+        return tuple([random.randint(0, 255) for _ in range(3)])
+	
+    def luminance(self, color):
+        return color[0] * RED_FACTOR + \
+                color[1] * GREEN_FACTOR + \
+                color[2] * BLUE_FACTOR
 
     def generate_picture(self):
-
         bg_color = self.random_color()
-        fg_color = self.random_color()
         noise_color = self.random_color()
 
-        while sum(bg_color) - sum(fg_color) < 100:
-            fg_color = self.random_color()
+        if self.luminance(bg_color) > THRESHOLD:
+            fg_color = (255, 255, 255)
+        else:
+            fg_color = (0, 0, 0)
         
         image = Image.new(
             'RGB', 
