@@ -1,6 +1,6 @@
 [*] Captcha Generator
 [*] Add random bg-color & auto fg-color
-[ ] sqlite3 support
+[*] sqlite3 support
 [ ] Standard bot template
 [ ] Handle personal messages
 [ ] Handle new members in a chat

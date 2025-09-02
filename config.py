@@ -7,3 +7,5 @@ BG_COLOR = 'white'
 FG_COLOR = 'black'
 NOISE_LEVEL = 30
 NOISE_COLOR = 'black'
+DB_PATH = 'test.db'
+COOL_DOWN = 900
