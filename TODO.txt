@@ -1,6 +1,8 @@
 [*] Captcha Generator
 [*] Add random bg-color & auto fg-color
 [*] sqlite3 support
-[ ] Standard bot template
+[*] Standard bot template
+[*] l10n
 [ ] Handle personal messages
 [ ] Handle new members in a chat
+[ ] Delete temp pictures from fs

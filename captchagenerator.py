@@ -49,9 +49,9 @@ class CaptchaGenerator:
         noise_color = self.random_color()
 
         if self.luminance(bg_color) > THRESHOLD:
-            fg_color = (255, 255, 255)
-        else:
             fg_color = (0, 0, 0)
+        else:
+            fg_color = (255, 255, 255)
         
         image = Image.new(
             'RGB', 
@@ -71,10 +71,10 @@ class CaptchaGenerator:
                   font=font,
                   fill=fg_color)
         
-        for x in range(config.PIC_WIDTH):
-            for y in range(config.PIC_HEIGHT):
+        for i in range(config.PIC_WIDTH):
+            for j in range(config.PIC_HEIGHT):
                 if random.random() < config.NOISE_LEVEL / 100:
-                    draw.point((x, y), fill=noise_color)
+                    draw.point((i, j), fill=noise_color)
         _, path = tempfile.mkstemp(suffix='.png')
         image.save(path)
         return Result(path, captcha.solution)

@@ -8,4 +8,6 @@ FG_COLOR = 'black'
 NOISE_LEVEL = 30
 NOISE_COLOR = 'black'
 DB_PATH = 'test.db'
+MAX_ATTEMPTS = 3
 COOL_DOWN = 900
+LOCALE = 'en_US'

@@ -14,23 +14,16 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-from aiogram import Bot, Dispatcher
-import asyncio
-import personal_msg_handler
-from captchagenerator import CaptchaGenerator
 import config
+import json
 
-bot = Bot(token=config.TOKEN)
-dp = Dispatcher()
+class Translator:
+	locale = dict()
+	
+	def __init__(self, lc_code):
+		with open(f'l10n/{lc_code}.json') as file:
+			self.locale = json.load(file)
+	
+	def get_string(self, string_id):
+		return self.locale.get(string_id, '<no_such_string>')
 
-
-async def main():
-	dp.include_router(personal_msg_handler.router)
-	await dp.start_polling(bot)
-
-
-if __name__ == '__main__':
-	asyncio.run(main())
-
-#generator = CaptchaGenerator()
-#print(generator.generate_picture())
