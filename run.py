@@ -17,6 +17,7 @@
 from aiogram import Bot, Dispatcher
 import asyncio
 import personal_msg_handler
+import chat_member_handler
 from captchagenerator import CaptchaGenerator
 import config
 
@@ -26,6 +27,7 @@ dp = Dispatcher()
 
 async def main():
 	dp.include_router(personal_msg_handler.router)
+	dp.include_router(chat_member_handler.router)
 	await dp.start_polling(bot)
 
 

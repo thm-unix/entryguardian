@@ -4,5 +4,6 @@
 	"no_captcha_requested": "You did not request a CAPTCHA. Please send /start command",
 	"incorrect": "That's not correct! Try again",
 	"temp_block": "Sorry, you've been temporarily blocked! Please try again later",
-	"verified": "Successfully verified! You can go back to the chat"
+	"verified": "Successfully verified! You can go back to the chat",
+	"already_requested": "You've already requested a CAPTCHA"
 }
