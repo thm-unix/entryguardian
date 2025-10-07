@@ -1,9 +1,10 @@
 {
-	"welcome_msg": "Hello! This bot protects public chats from spam bots. Please prove you're not a robot by solving a math problem shown below.",
+	"start_msg": "Hello! This bot protects public chats from spam bots. Please prove you're not a robot by solving a math problem shown below",
 	"already_verified": "Hello! You're already verified",
 	"no_captcha_requested": "You did not request a CAPTCHA. Please send /start command",
 	"incorrect": "That's not correct! Try again",
 	"temp_block": "Sorry, you've been temporarily blocked! Please try again later",
 	"verified": "Successfully verified! You can go back to the chat",
-	"already_requested": "You've already requested a CAPTCHA"
+	"already_requested": "You've already requested a CAPTCHA",
+	"welcome_msg": "Hello, @{0}! I'm an anti-spam bot. Please send me a start command in personal messages and solve a CAPTCHA challenge to join the chat"
 }

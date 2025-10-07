@@ -40,14 +40,17 @@ def get_captcha(user_id):
 @router.message(CommandStart())
 async def start_handler(message: types.Message):
 	user_id = message.from_user.id
-	# print(message.from_user.language_code)
-	
+	chat_id = message.chat.id
+
+	if chat_id < 0:
+		return
+
 	if did_user_request_captcha.get(user_id, False) and not db_man.is_user_allowed(user_id):
 		await message.answer(translator.get_string('already_requested'))
 		return
 
 	if not db_man.is_user_allowed(user_id) and not db_man.is_user_blocked(user_id):
-		await message.answer(translator.get_string('welcome_msg'))
+		await message.answer(translator.get_string('start_msg'))
 		attempts_left_by_uid[user_id] = config.MAX_ATTEMPTS
 		input_file = get_captcha(user_id)
 		await message.answer_photo(input_file)

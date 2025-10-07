@@ -27,20 +27,25 @@ import socket
 import os
 import asyncio
 import threading
+import config
+from translator import Translator
 
 router = Router()
 db_man = DBManager()
 chats_by_user_id = dict()
+translator = Translator(config.LOCALE)
 loop = None
 
 @router.chat_member(ChatMemberUpdatedFilter(IS_NOT_MEMBER >> IS_MEMBER))
 async def handle_new_user(event: ChatMemberUpdated, bot: Bot):
 	global loop
 	loop = asyncio.get_running_loop()
-	print(f'New chat member! uid={event.from_user.id}')
 	user_id = event.from_user.id
 	chat_id = event.chat.id
 	if not db_man.is_user_allowed(user_id):
+		msg = translator.get_string('welcome_msg').format(event.from_user.username)
+		await bot.send_message(chat_id, msg)
+
 		await bot.restrict_chat_member(
 			chat_id=chat_id,
 			user_id=user_id,
@@ -58,18 +63,6 @@ async def handle_new_user(event: ChatMemberUpdated, bot: Bot):
             args=(user_id, bot),
             daemon=True
         ).start()
-		
-		#asyncio.to_thread(socket_listener, user_id, bot)
-		#asyncio.create_task(socket_listener(user_id, bot))
-		#thread = threading.Thread(
-		#	target=socket_listener,
-		#	args=(user_id, bot),
-		#	daemon=True
-		#)
-		#thread.start()
-		#thread.join()
-		#asyncio.run(socket_listener(user_id, bot))
-		#await socket_listener(user_id, bot)
 		
 async def unrestrict_user(bot, user_id):
 	for chat_id in chats_by_user_id[user_id]:
@@ -99,11 +92,6 @@ def socket_listener(user_id, bot):
 			s = data.decode()
 			if s == 'verified':
 				for chat_id in chats_by_user_id[user_id]:
-					#await bot.restrict_chat_member(
-					#	chat_id=chat_id,
-					#	user_id=user_id,
-					#	permissions=ChatPermissions(can_send_messages=True)
-					#)
 					asyncio.run_coroutine_threadsafe(
                        unrestrict_user(bot, user_id),
                        loop

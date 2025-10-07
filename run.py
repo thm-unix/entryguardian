@@ -33,6 +33,3 @@ async def main():
 
 if __name__ == '__main__':
 	asyncio.run(main())
-
-#generator = CaptchaGenerator()
-#print(generator.generate_picture())
