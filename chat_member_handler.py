@@ -69,7 +69,13 @@ async def unrestrict_user(bot, user_id):
 		await bot.restrict_chat_member(
 			chat_id=chat_id,
             user_id=user_id,
-            permissions=ChatPermissions(can_send_messages=True)
+            permissions=ChatPermissions(can_send_messages=True),
+            permissions=ChatPermissions(can_send_audios=True),
+            permissions=ChatPermissions(can_send_documents=True),
+            permissions=ChatPermissions(can_send_photos=True),
+            permissions=ChatPermissions(can_send_videos=True),
+            permissions=ChatPermissions(can_send_polls=True),
+            permissions=ChatPermissions(can_send_other_messages=True)
 		)
 
 def socket_listener(user_id, bot):		
