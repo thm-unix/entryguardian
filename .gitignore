@@ -1,0 +1,4 @@
+users.db
+__pycache__/
+.claude
+config.py

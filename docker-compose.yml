@@ -1,0 +1,14 @@
+version: "3.9"
+
+services:
+  entryguardian:
+    build: .
+    container_name: entryguardian
+    restart: unless-stopped
+
+    volumes:
+      - ./users.db:/app/users.db
+      - /usr/share/fonts/TTF/SimpleHandmade.ttf:/usr/share/fonts/TTF/SimpleHandmade.ttf:ro
+
+    environment:
+      - PYTHONUNBUFFERED=1
