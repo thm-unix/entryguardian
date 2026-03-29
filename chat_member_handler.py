@@ -32,14 +32,13 @@ translator = Translator(config.LOCALE)
 # Set by run.py after bot.get_me() so we can build the deep-link URL
 bot_username: str | None = None
 
-# user_id → (chat_id, message_id) of that user's welcome message
-_welcome_msg_by_user: dict[int, tuple[int, int]] = {}
+# user_id → list of (chat_id, message_id) — one entry per chat the user joined
+_welcome_msg_by_user: dict[int, list[tuple[int, int]]] = {}
 
 
 async def delete_welcome_msg(bot: Bot, user_id: int) -> None:
-    """Delete the welcome message for a user after they verify. Called from personal_msg_handler."""
-    if user_id in _welcome_msg_by_user:
-        chat_id, msg_id = _welcome_msg_by_user.pop(user_id)
+    """Delete all welcome messages for a user after they verify. Called from personal_msg_handler."""
+    for chat_id, msg_id in _welcome_msg_by_user.pop(user_id, []):
         try:
             await bot.delete_message(chat_id, msg_id)
         except Exception:
@@ -68,16 +67,19 @@ async def handle_new_user(event: ChatMemberUpdated, bot: Bot):
         ]])
 
     # Delete any existing welcome message in this chat (for a previous pending user)
-    for uid, (cid, mid) in list(_welcome_msg_by_user.items()):
-        if cid == chat_id:
-            try:
-                await bot.delete_message(chat_id, mid)
-            except Exception:
-                pass
+    for uid, entries in list(_welcome_msg_by_user.items()):
+        for cid, mid in entries:
+            if cid == chat_id:
+                try:
+                    await bot.delete_message(chat_id, mid)
+                except Exception:
+                    pass
+        _welcome_msg_by_user[uid] = [(cid, mid) for cid, mid in entries if cid != chat_id]
+        if not _welcome_msg_by_user[uid]:
             del _welcome_msg_by_user[uid]
 
     sent = await bot.send_message(chat_id, msg, reply_markup=keyboard)
-    _welcome_msg_by_user[user_id] = (chat_id, sent.message_id)
+    _welcome_msg_by_user.setdefault(user_id, []).append((chat_id, sent.message_id))
 
     await bot.restrict_chat_member(
         chat_id=chat_id,
