@@ -15,12 +15,13 @@ A Telegram bot that protects group chats from spam bots. When a new member joins
 - Temporary ban after exhausting all attempts (15 minutes by default)
 - Verification state is persisted in a database — survives bot restarts
 - Localization support (`ru_RU`, `en_US`)
+- Blocklist — permanently ban specific users on join
 
 ## Requirements
 
 - Python 3.11+
-- [SimpleHandmade](https://www.dafont.com/simple-handmade-2.font) font (or any TTF; path is set in `config.py`)
-- Dependencies: `aiogram`, `pillow`
+- [SimpleHandmade](https://www.dafont.com/simple-handmade-2.font) font (or any TTF; path is set in `.env`)
+- Dependencies: `aiogram`, `pillow`, `python-dotenv`
 
 ## Font Installation
 
@@ -40,6 +41,8 @@ The font must be in place before starting the bot.
 ### Directly
 
 ```bash
+cp .env.example .env
+# edit .env and set TOKEN
 pip install -r requirements.txt
 python run.py
 ```
@@ -47,6 +50,8 @@ python run.py
 ### Docker Compose
 
 ```bash
+cp .env.example .env
+# edit .env and set TOKEN
 docker compose up -d
 ```
 
@@ -54,9 +59,9 @@ The database is mounted from `./users.db` and the font from `/usr/share/fonts/TT
 
 ## Configuration
 
-All parameters are set in `config.py`:
+All parameters are set in `.env` (copy from `.env.example`):
 
-| Parameter | Default | Description |
+| Variable | Default | Description |
 |---|---|---|
 | `TOKEN` | — | Bot token from @BotFather |
 | `LOCALE` | `ru_RU` | Message language (`ru_RU` or `en_US`) |
@@ -68,12 +73,23 @@ All parameters are set in `config.py`:
 | `PIC_HEIGHT` | `140` | CAPTCHA image height in pixels |
 | `NOISE_LEVEL` | `30` | Noise level on the image (0–100) |
 | `DB_PATH` | `users.db` | Path to the SQLite database file |
+| `BLOCKLIST` | _(empty)_ | Comma-separated Telegram user IDs to permanently ban on join |
+
+## Blocklist
+
+To permanently ban specific users, add their Telegram IDs to `BLOCKLIST` in `.env`:
+
+```
+BLOCKLIST=123456789,987654321
+```
+
+Banned users are kicked the moment they join any chat where the bot is active. If they message the bot directly, they receive a "You have been blocked" reply. Restart the bot after editing the blocklist.
 
 ## Adding the Bot to a Chat
 
 1. Create a bot via [@BotFather](https://t.me/BotFather) and get the token
-2. Put the token in `config.py` → `TOKEN`
-3. Add the bot to your group and grant it **administrator** rights (required: restrict members, delete messages)
+2. Set the token in `.env` → `TOKEN`
+3. Add the bot to your group and grant it **administrator** rights (required: restrict members, delete messages, ban members)
 4. Start the bot
 
 ## Managing Users Manually

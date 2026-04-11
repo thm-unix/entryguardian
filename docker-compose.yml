@@ -6,6 +6,9 @@ services:
     container_name: entryguardian
     restart: unless-stopped
 
+    env_file:
+      - .env
+
     volumes:
       - ./users.db:/app/users.db
       - /usr/share/fonts/TTF/SimpleHandmade.ttf:/usr/share/fonts/TTF/SimpleHandmade.ttf:ro

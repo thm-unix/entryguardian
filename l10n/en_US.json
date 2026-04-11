@@ -11,5 +11,6 @@
 	"hint_math": "Solve the expression and send the answer as a number",
 	"hint_text": "Type the characters shown in the image (case-insensitive)",
 	"hint_sequence": "Find the missing number in the sequence and send it",
-	"hint_shapes": "Count the circles in the image and send the total as a number"
+	"hint_shapes": "Count the circles in the image and send the total as a number",
+	"blocked_msg": "You have been blocked"
 }

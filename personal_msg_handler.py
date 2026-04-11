@@ -69,6 +69,10 @@ async def start_handler(message: types.Message):
     if message.chat.id < 0:
         return
 
+    if user_id in config.BLOCKLIST:
+        await message.answer(translator.get_string('blocked_msg'))
+        return
+
     if _did_request_captcha.get(user_id, False) and not db_man.is_user_allowed(user_id):
         await message.answer(translator.get_string('already_requested'))
         return

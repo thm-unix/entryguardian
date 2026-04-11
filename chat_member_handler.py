@@ -51,6 +51,13 @@ async def handle_new_user(event: ChatMemberUpdated, bot: Bot):
     user_id = user.id
     chat_id = event.chat.id
 
+    if user_id in config.BLOCKLIST:
+        try:
+            await bot.ban_chat_member(chat_id=chat_id, user_id=user_id)
+        except Exception:
+            pass
+        return
+
     if db_man.is_user_allowed(user_id):
         return
 
