@@ -75,16 +75,6 @@ All parameters are set in `.env` (copy from `.env.example`):
 | `DB_PATH` | `users.db` | Path to the SQLite database file |
 | `BLOCKLIST` | _(empty)_ | Comma-separated Telegram user IDs to permanently ban on join |
 
-## Blocklist
-
-To permanently ban specific users, add their Telegram IDs to `BLOCKLIST` in `.env`:
-
-```
-BLOCKLIST=123456789,987654321
-```
-
-Banned users are kicked the moment they join any chat where the bot is active. If they message the bot directly, they receive a "You have been blocked" reply. Restart the bot after editing the blocklist.
-
 ## Adding the Bot to a Chat
 
 1. Create a bot via [@BotFather](https://t.me/BotFather) and get the token

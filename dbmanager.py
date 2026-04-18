@@ -94,6 +94,13 @@ class DBManager:
 		).fetchall()
 		return [row[0] for row in rows]
 
+	def remove_pending_chat(self, user_id, chat_id):
+		self.cursor.execute(
+			'DELETE FROM pending_chats WHERE user_id=? AND chat_id=?',
+			(user_id, chat_id)
+		)
+		self.connection.commit()
+
 	def clear_pending_chats(self, user_id):
 		self.cursor.execute('DELETE FROM pending_chats WHERE user_id=?', (user_id,))
 		self.connection.commit()

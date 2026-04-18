@@ -14,26 +14,34 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-from aiogram import Bot, Dispatcher
-import asyncio
-import personal_msg_handler
-import chat_member_handler
-import reaction_handler
+from aiogram import Router, Bot
+from aiogram.types import MessageReactionUpdated
+from dbmanager import DBManager
+from datetime import datetime
 import config
 
-bot = Bot(token=config.TOKEN)
-dp = Dispatcher()
+router = Router()
+db_man = DBManager()
 
 
-async def main():
-    bot_info = await bot.get_me()
-    chat_member_handler.bot_username = bot_info.username
 
-    dp.include_router(personal_msg_handler.router)
-    dp.include_router(chat_member_handler.router)
-    dp.include_router(reaction_handler.router)
-    await dp.start_polling(bot, allowed_updates=['message', 'chat_member', 'message_reaction'])
+@router.message_reaction()
+async def on_reaction(event: MessageReactionUpdated, bot: Bot):
+    if not event.user:
+        return
 
+    user_id = event.user.id
+    chat_id = event.chat.id
 
-if __name__ == '__main__':
-    asyncio.run(main())
+    if user_id in config.BLOCKLIST:
+        return
+
+    if chat_id not in db_man.get_pending_chats(user_id):
+        return
+
+    banned_until = int(datetime.now().timestamp()) + config.COOL_DOWN
+    try:
+        await bot.ban_chat_member(chat_id=chat_id, user_id=user_id, until_date=banned_until)
+    except Exception:
+        pass
+

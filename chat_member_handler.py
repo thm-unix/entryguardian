@@ -61,6 +61,9 @@ async def handle_new_user(event: ChatMemberUpdated, bot: Bot):
     if db_man.is_user_allowed(user_id):
         return
 
+    if chat_id in db_man.get_pending_chats(user_id):
+        return
+
     user_display = f'@{user.username}' if user.username else user.first_name
     msg = translator.get_string('welcome_msg').format(user_display)
 
