@@ -4,8 +4,8 @@ Telegram anti-spam bot that gates group entry behind a DOOM captcha. When a new 
 
 ## How it works
 
-1. A new user joins the group → bot mutes them and posts a welcome message with a "Пройти верификацию" button linking to the bot's DM.
-2. The user sends `/start` to the bot in DM → bot replies with a "Пройти капчу" button that opens the captcha page.
+1. A new user joins the group → bot mutes them and posts a welcome message with a button linking to the bot's DM.
+2. The user sends `/start` to the bot in DM → bot replies with a button that opens the captcha page.
 3. The user plays the DOOM minigame in the browser (kills N enemies).
 4. On completion the page shows an 8-character code.
 5. The user sends the code to the bot → bot verifies it, unmutes the user in all pending chats, and deletes the welcome message.
@@ -87,27 +87,6 @@ python run.py
 2. Add the bot to your group and grant it **administrator** rights (restrict members, delete messages, ban members).
 3. Start the bot.
 
-## Managing users manually
-
-```bash
-# Remove a user (e.g. to retest verification)
-sqlite3 users.db "DELETE FROM user WHERE id=USER_ID; DELETE FROM pending_chats WHERE user_id=USER_ID;"
-
-# List all verified users
-sqlite3 users.db "SELECT * FROM user;"
-```
-
-## Security
-
-- **Server-side kill tracking** — every enemy kill is validated by the server with a per-session challenge token and a cooldown. Client game state is not trusted.
-- **Challenge token** — generated on page load and required in all API requests, preventing replay without loading the page first.
-- **`event.isTrusted` check** — programmatic JS `click()` events are rejected; only real user input counts.
-- **postMessage origin validation** — the captcha iframe only accepts and sends messages to its own origin.
-- **`MIN_PLAY_TIME`** — completion is rejected if the page was open for fewer than N seconds.
-- **Attempt limiting + temp block** — brute-forcing the 8-char code triggers a cooldown.
-- **Parameterized SQL queries** — all database queries use `?` placeholders.
-- **Path traversal protection** — the `/doom/` static file handler resolves symlinks and refuses paths outside the project directory.
-
 ## Project structure
 
 ```
@@ -125,7 +104,8 @@ entryguardian/
 ├── templates/
 │   └── captcha_wrapper.html  # outer page that hosts the game iframe
 ├── l10n/
-│   └── ru_RU.json            # Russian locale strings
+│   ├── ru_RU.json            # Russian locale strings
+│   └── en_US.json            # English locale strings
 ├── static/                   # game assets (sprites, sounds)
 ├── Dockerfile
 └── docker-compose.yml
