@@ -19,6 +19,7 @@ import asyncio
 import personal_msg_handler
 import chat_member_handler
 import reaction_handler
+import webserver
 import config
 
 bot = Bot(token=config.TOKEN)
@@ -32,7 +33,12 @@ async def main():
     dp.include_router(personal_msg_handler.router)
     dp.include_router(chat_member_handler.router)
     dp.include_router(reaction_handler.router)
-    await dp.start_polling(bot, allowed_updates=['message', 'chat_member', 'message_reaction'])
+
+    await asyncio.gather(
+        dp.start_polling(bot, allowed_updates=['message', 'chat_member', 'message_reaction']),
+        webserver.start_server(),
+        personal_msg_handler.session_expiry_task(bot),
+    )
 
 
 if __name__ == '__main__':

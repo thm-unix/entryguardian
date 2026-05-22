@@ -1,101 +1,136 @@
 # Entry Guardian
 
-A Telegram bot that protects group chats from spam bots. When a new member joins, the bot restricts their permissions and asks them to solve a CAPTCHA in a private message. Once passed, restrictions are lifted automatically.
+Telegram anti-spam bot that gates group entry behind a DOOM captcha. When a new user joins a group, the bot mutes them and sends them a link to play a short DOOM minigame. After killing the required number of enemies the user receives an 8-character code, sends it to the bot, and gets unmuted.
 
-## Features
+## How it works
 
-- Automatically restricts new members until they complete verification
-- 4 randomly selected CAPTCHA types:
-  - **Arithmetic** — solve a math expression (`7 * 3`)
-  - **Text** — type the characters shown in the image (`A4FK2`)
-  - **Sequence** — find the missing number (`3, 7, ?, 15`)
-  - **Shape counting** — count the circles in the image
-- Inline button in the welcome message with a direct deep link to the bot
-- Welcome message is automatically deleted after the user verifies
-- Temporary ban after exhausting all attempts (15 minutes by default)
-- Verification state is persisted in a database — survives bot restarts
-- Localization support (`ru_RU`, `en_US`)
-- Blocklist — permanently ban specific users on join
+1. A new user joins the group → bot mutes them and posts a welcome message with a "Пройти верификацию" button linking to the bot's DM.
+2. The user sends `/start` to the bot in DM → bot replies with a "Пройти капчу" button that opens the captcha page.
+3. The user plays the DOOM minigame in the browser (kills N enemies).
+4. On completion the page shows an 8-character code.
+5. The user sends the code to the bot → bot verifies it, unmutes the user in all pending chats, and deletes the welcome message.
+
+Sessions expire after 5 minutes. Failed code attempts are limited; too many wrong attempts result in a temporary block.
 
 ## Requirements
 
 - Python 3.11+
-- [SimpleHandmade](https://www.dafont.com/simple-handmade-2.font) font (or any TTF; path is set in `.env`)
-- Dependencies: `aiogram`, `pillow`, `python-dotenv`
-
-## Font Installation
-
-The bot uses the **SimpleHandmade** font to render CAPTCHA images.
-
-1. Download the font archive from [dafont.com](https://www.dafont.com/simple-handmade-2.font)
-2. Extract the archive and copy `SimpleHandmade.ttf` to `/usr/share/fonts/TTF/`:
-
-```bash
-sudo cp SimpleHandmade.ttf /usr/share/fonts/TTF/SimpleHandmade.ttf
-```
-
-The font must be in place before starting the bot.
-
-## Installation & Running
-
-### Directly
-
-```bash
-cp .env.example .env
-# edit .env and set TOKEN
-pip install -r requirements.txt
-python run.py
-```
-
-### Docker Compose
-
-```bash
-cp .env.example .env
-# edit .env and set TOKEN
-docker compose up -d
-```
-
-The database is mounted from `./users.db` and the font from `/usr/share/fonts/TTF/SimpleHandmade.ttf` on the host.
+- Docker + Docker Compose (recommended)
+- A domain with HTTPS (nginx reverse proxy) so the captcha page is accessible from the internet
+- A Telegram bot token from [@BotFather](https://t.me/BotFather) with **Group privacy mode disabled** and **Group member events** enabled
 
 ## Configuration
 
-All parameters are set in `.env` (copy from `.env.example`):
+Copy `.env.example` to `.env` and fill in the values (`.env.example` lists all available options):
 
-| Variable | Default | Description |
-|---|---|---|
-| `TOKEN` | — | Bot token from @BotFather |
-| `LOCALE` | `ru_RU` | Message language (`ru_RU` or `en_US`) |
-| `MAX_ATTEMPTS` | `3` | Number of CAPTCHA attempts allowed |
-| `COOL_DOWN` | `900` | Temporary ban duration in seconds after failing |
-| `FONT_PATH` | `/usr/share/fonts/TTF/SimpleHandmade.ttf` | Path to the TTF font for CAPTCHA images |
-| `FONT_SIZE` | `144` | Font size (auto-scaled for longer text) |
-| `PIC_WIDTH` | `300` | CAPTCHA image width in pixels |
-| `PIC_HEIGHT` | `140` | CAPTCHA image height in pixels |
-| `NOISE_LEVEL` | `30` | Noise level on the image (0–100) |
-| `DB_PATH` | `users.db` | Path to the SQLite database file |
-| `BLOCKLIST` | _(empty)_ | Comma-separated Telegram user IDs to permanently ban on join |
+```env
+TOKEN=<bot token>
+DB_PATH=users.db
 
-## Adding the Bot to a Chat
+# Captcha web server
+WEB_HOST=0.0.0.0
+WEB_PORT=8080
+CAPTCHA_BASE_URL=https://yourdomain.com/captcha
 
-1. Create a bot via [@BotFather](https://t.me/BotFather) and get the token
-2. Set the token in `.env` → `TOKEN`
-3. Add the bot to your group and grant it **administrator** rights (required: restrict members, delete messages, ban members)
-4. Start the bot
+# Captcha difficulty
+CAPTCHA_ENEMIES=4        # enemies the player must kill
+CAPTCHA_TIMEOUT=300      # session lifetime in seconds
+MIN_PLAY_TIME=3.0        # minimum seconds the page must be open before completion is accepted
+KILL_COOLDOWN=0.5        # minimum seconds between registered kills (prevents scripted rapid kills)
 
-## Managing Users Manually
-
-Delete a user from the database (e.g. for testing):
-
-```bash
-sqlite3 users.db "DELETE FROM user WHERE id=USER_ID; DELETE FROM pending_chats WHERE user_id=USER_ID;"
+# Bot behaviour
+MAX_ATTEMPTS=3           # wrong code attempts before temp block
+COOL_DOWN=900            # temp block duration in seconds
+LOCALE=ru_RU
+BLOCKLIST=               # comma-separated Telegram user IDs to permanently ban on join
 ```
 
-List all users:
+## Running with Docker
 
 ```bash
+# Create an empty database file so Docker mounts it as a file, not a directory
+touch users.db
+
+docker compose up -d
+docker compose logs -f
+```
+
+The web server listens on `127.0.0.1:8080` on the host. Proxy it with nginx:
+
+```nginx
+location /captcha/ {
+    proxy_pass http://127.0.0.1:8080/captcha/;
+}
+
+location /api/captcha/ {
+    proxy_pass http://127.0.0.1:8080/api/captcha/;
+}
+
+location /doom/ {
+    proxy_pass http://127.0.0.1:8080/doom/;
+}
+```
+
+> **Note:** set `WEB_HOST=0.0.0.0` in `.env` — inside Docker the container's loopback is not reachable from the host.
+
+## Running without Docker
+
+```bash
+pip install -r requirements.txt
+cp .env.example .env  # edit .env
+python run.py
+```
+
+## Adding the bot to a group
+
+1. Create a bot via [@BotFather](https://t.me/BotFather), get the token, set it as `TOKEN` in `.env`.
+2. Add the bot to your group and grant it **administrator** rights (restrict members, delete messages, ban members).
+3. Start the bot.
+
+## Managing users manually
+
+```bash
+# Remove a user (e.g. to retest verification)
+sqlite3 users.db "DELETE FROM user WHERE id=USER_ID; DELETE FROM pending_chats WHERE user_id=USER_ID;"
+
+# List all verified users
 sqlite3 users.db "SELECT * FROM user;"
+```
+
+## Security
+
+- **Server-side kill tracking** — every enemy kill is validated by the server with a per-session challenge token and a cooldown. Client game state is not trusted.
+- **Challenge token** — generated on page load and required in all API requests, preventing replay without loading the page first.
+- **`event.isTrusted` check** — programmatic JS `click()` events are rejected; only real user input counts.
+- **postMessage origin validation** — the captcha iframe only accepts and sends messages to its own origin.
+- **`MIN_PLAY_TIME`** — completion is rejected if the page was open for fewer than N seconds.
+- **Attempt limiting + temp block** — brute-forcing the 8-char code triggers a cooldown.
+- **Parameterized SQL queries** — all database queries use `?` placeholders.
+- **Path traversal protection** — the `/doom/` static file handler resolves symlinks and refuses paths outside the project directory.
+
+## Project structure
+
+```
+entryguardian/
+├── run.py                    # entry point — starts bot, web server, expiry task
+├── config.py                 # settings loaded from .env
+├── webserver.py              # aiohttp: captcha page, kill API, complete API, static files
+├── session_manager.py        # in-memory session store
+├── personal_msg_handler.py   # /start and code verification in bot DM
+├── chat_member_handler.py    # new member detection, mute, welcome message
+├── reaction_handler.py       # reaction events
+├── dbmanager.py              # SQLite: verified users, pending chats
+├── translator.py             # locale string loader
+├── captcha.html              # DOOM minigame (served under /doom/)
+├── templates/
+│   └── captcha_wrapper.html  # outer page that hosts the game iframe
+├── l10n/
+│   └── ru_RU.json            # Russian locale strings
+├── static/                   # game assets (sprites, sounds)
+├── Dockerfile
+└── docker-compose.yml
 ```
 
 ## License
 
-GNU General Public License v3.0 — see the `LICENSE` file for details.
+GNU General Public License v3.0 — see `LICENSE`.

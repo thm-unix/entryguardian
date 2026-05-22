@@ -33,46 +33,34 @@ class DBManager:
 		return int(datetime.now().timestamp())
 
 	def is_user_known(self, user_id):
-		query = f'SELECT id FROM user WHERE id={user_id}'
-		result = self.cursor.execute(query).fetchone()
+		result = self.cursor.execute('SELECT id FROM user WHERE id=?', (user_id,)).fetchone()
 		return bool(result)
 
 	def is_user_blocked(self, user_id):
 		if not self.is_user_known(user_id):
 			return False
-
-		query = f'SELECT blocked_until FROM user WHERE id={user_id}'
-		result = self.cursor.execute(query).fetchone()
+		result = self.cursor.execute('SELECT blocked_until FROM user WHERE id=?', (user_id,)).fetchone()
 		return result[0] > self.unix_time()
 
 	def is_user_allowed(self, user_id):
 		if self.is_user_known(user_id) and not self.is_user_blocked(user_id):
-			query = f'SELECT verified FROM user WHERE id={user_id}'
-			result = self.cursor.execute(query).fetchone()
+			result = self.cursor.execute('SELECT verified FROM user WHERE id=?', (user_id,)).fetchone()
 			return bool(result[0])
 		return False
 
 	def verify_user(self, user_id):
-		query = ''
 		if not self.is_user_known(user_id):
-			query = f'INSERT INTO user VALUES ({user_id}, 1, -1)'
+			self.cursor.execute('INSERT INTO user VALUES (?, 1, -1)', (user_id,))
 		else:
-			query = f'UPDATE user SET verified=1 WHERE id={user_id}'
-
-		self.cursor.execute(query)
+			self.cursor.execute('UPDATE user SET verified=1 WHERE id=?', (user_id,))
 		self.connection.commit()
 
 	def temp_block(self, user_id):
-		timestamp = self.unix_time()
-		blocked_until = timestamp + config.COOL_DOWN
-
-		query = ''
+		blocked_until = self.unix_time() + config.COOL_DOWN
 		if not self.is_user_known(user_id):
-			query = f'INSERT INTO user VALUES ({user_id}, 0, {blocked_until})'
+			self.cursor.execute('INSERT INTO user VALUES (?, 0, ?)', (user_id, blocked_until))
 		else:
-			query = f'UPDATE user SET blocked_until={blocked_until} WHERE id={user_id}'
-
-		self.cursor.execute(query)
+			self.cursor.execute('UPDATE user SET blocked_until=? WHERE id=?', (blocked_until, user_id))
 		self.connection.commit()
 
 	def add_pending_chat(self, user_id, chat_id):

@@ -9,9 +9,11 @@ services:
     env_file:
       - .env
 
+    ports:
+      - "127.0.0.1:8080:8080"
+
     volumes:
       - ./users.db:/app/users.db
-      - /usr/share/fonts/TTF/SimpleHandmade.ttf:/usr/share/fonts/TTF/SimpleHandmade.ttf:ro
 
     environment:
       - PYTHONUNBUFFERED=1

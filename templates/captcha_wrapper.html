@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <title>DOOM Captcha</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: #111;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            font-family: 'Courier New', monospace;
+            color: #eee;
+            gap: 16px;
+        }
+        h2 {
+            color: #ff4444;
+            font-size: 1.3rem;
+            letter-spacing: 2px;
+        }
+        iframe {
+            border: 2px solid #444;
+            display: block;
+        }
+        #result {
+            display: none;
+            text-align: center;
+            padding: 24px 32px;
+            background: #1a1a1a;
+            border: 2px solid #33aa33;
+            border-radius: 4px;
+        }
+        #result p {
+            margin-bottom: 10px;
+            font-size: 1rem;
+            color: #ccc;
+        }
+        #code-box {
+            background: #000;
+            border: 2px solid #33ff33;
+            padding: 12px 24px;
+            font-size: 2.4rem;
+            font-weight: bold;
+            letter-spacing: 8px;
+            color: #33ff33;
+            margin: 12px 0;
+            font-family: 'Courier New', monospace;
+        }
+        #hint {
+            font-size: 0.85rem;
+            color: #888;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+    <h2>CAPTCHA</h2>
+    <iframe id="frame"
+            src="/doom/captcha.html?enemies=__ENEMIES__&uuid=__UUID__&challenge=__CHALLENGE__"
+            width="300" height="150"
+            scrolling="no"
+            frameborder="0"></iframe>
+    <div id="result">
+        <p>&#x2705; Капча пройдена!</p>
+        <p>Отправьте этот код боту:</p>
+        <div id="code-box"></div>
+        <div id="hint">Введите код в чате с ботом для завершения верификации</div>
+    </div>
+    <script>
+        var uuid = '__UUID__';
+        var challenge = '__CHALLENGE__';
+        var done = false;
+        window.addEventListener('message', function(e) {
+            if (done) return;
+            if (e.origin !== window.location.origin) return;
+            if (!e.data || e.data.type !== 'doom_complete') return;
+            done = true;
+            fetch('/api/captcha/' + uuid + '/complete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ challenge: challenge })
+            })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data.code) {
+                        document.getElementById('frame').style.display = 'none';
+                        document.getElementById('code-box').textContent = data.code;
+                        document.getElementById('result').style.display = 'block';
+                    }
+                });
+        });
+    </script>
+</body>
+</html>

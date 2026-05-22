@@ -16,32 +16,22 @@
 
 from aiogram import Router, types, Bot
 from aiogram.filters import CommandStart
-from aiogram.types import FSInputFile, ChatPermissions
+from aiogram.types import ChatPermissions, InlineKeyboardMarkup, InlineKeyboardButton
 from dbmanager import DBManager
-from captchagenerator import CaptchaGenerator
 from translator import Translator
 import chat_member_handler
-import os
+import session_manager
 import config
+import asyncio
 
 router = Router()
 db_man = DBManager()
 translator = Translator(config.LOCALE)
-captcha_generator = CaptchaGenerator()
 
-# In-memory state; safe to lose on restart — user just sends /start again
-_answer_by_uid: dict[int, str] = {}
-_attempts_left_by_uid: dict[int, int] = {}
-_did_request_captcha: dict[int, bool] = {}
+_attempts_left: dict[int, int] = {}
 
 
-def _get_captcha(user_id: int) -> tuple[FSInputFile, str]:
-    result = captcha_generator.generate_picture()
-    _answer_by_uid[user_id] = result.solution  # always a string
-    return FSInputFile(result.filename), result.hint_key
-
-
-async def _unrestrict_user(bot: Bot, user_id: int):
+async def _unrestrict_user(bot: Bot, user_id: int) -> None:
     for chat_id in db_man.get_pending_chats(user_id):
         try:
             await bot.restrict_chat_member(
@@ -54,7 +44,7 @@ async def _unrestrict_user(bot: Bot, user_id: int):
                     can_send_photos=True,
                     can_send_videos=True,
                     can_send_polls=True,
-                    can_send_other_messages=True
+                    can_send_other_messages=True,
                 )
             )
         except Exception:
@@ -62,8 +52,17 @@ async def _unrestrict_user(bot: Bot, user_id: int):
     db_man.clear_pending_chats(user_id)
 
 
+def _build_link_msg(session_id: str) -> tuple[str, InlineKeyboardMarkup]:
+    url = f'{config.CAPTCHA_BASE_URL}/{session_id}'
+    text = translator.get_string('captcha_link_msg')
+    markup = InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(text=translator.get_string('captcha_button'), url=url)
+    ]])
+    return text, markup
+
+
 @router.message(CommandStart())
-async def start_handler(message: types.Message):
+async def start_handler(message: types.Message) -> None:
     user_id = message.from_user.id
 
     if message.chat.id < 0:
@@ -71,10 +70,6 @@ async def start_handler(message: types.Message):
 
     if user_id in config.BLOCKLIST:
         await message.answer(translator.get_string('blocked_msg'))
-        return
-
-    if _did_request_captcha.get(user_id, False) and not db_man.is_user_allowed(user_id):
-        await message.answer(translator.get_string('already_requested'))
         return
 
     if db_man.is_user_blocked(user_id):
@@ -85,51 +80,65 @@ async def start_handler(message: types.Message):
         await message.answer(translator.get_string('already_verified'))
         return
 
-    await message.answer(translator.get_string('start_msg'))
-    _attempts_left_by_uid[user_id] = config.MAX_ATTEMPTS
-    input_file, hint_key = _get_captcha(user_id)
-    hint_text = translator.get_string(hint_key)
-    await message.answer_photo(input_file, caption=hint_text)
-    os.remove(input_file.path)
-    _did_request_captcha[user_id] = True
+    pending = session_manager.get_pending_session(user_id)
+    if pending:
+        text, markup = _build_link_msg(pending)
+        await message.answer(text, reply_markup=markup)
+        return
+
+    session_id = session_manager.create_session(user_id)
+    _attempts_left[user_id] = config.MAX_ATTEMPTS
+    text, markup = _build_link_msg(session_id)
+    await message.answer(text, reply_markup=markup)
 
 
 @router.message()
-async def handle_captcha_attempt(message: types.Message, bot: Bot):
+async def handle_code_attempt(message: types.Message, bot: Bot) -> None:
     if message.chat.type != 'private':
         return
 
     user_id = message.from_user.id
 
-    if user_id not in _answer_by_uid:
+    if db_man.is_user_blocked(user_id):
+        await message.answer(translator.get_string('temp_block'))
+        return
+
+    if db_man.is_user_allowed(user_id):
+        return
+
+    if not session_manager.has_any_session(user_id):
         await message.answer(translator.get_string('no_captcha_requested'))
         return
 
-    if _attempts_left_by_uid.get(user_id, 0) <= 0:
-        if db_man.is_user_blocked(user_id):
+    code = (message.text or '').strip().upper()
+    session_id = session_manager.find_by_code(user_id, code)
+
+    if session_id is None:
+        if user_id not in _attempts_left:
+            _attempts_left[user_id] = config.MAX_ATTEMPTS
+        _attempts_left[user_id] -= 1
+        if _attempts_left[user_id] > 0:
+            await message.answer(translator.get_string('incorrect'))
+        else:
+            db_man.temp_block(user_id)
+            session_manager.remove_user_sessions(user_id)
+            _attempts_left.pop(user_id, None)
             await message.answer(translator.get_string('temp_block'))
         return
 
-    user_input = (message.text or '').strip().upper()
-    correct = _answer_by_uid[user_id].strip().upper()
+    await message.answer(translator.get_string('verified'))
+    db_man.verify_user(user_id)
+    session_manager.remove_session(session_id)
+    _attempts_left.pop(user_id, None)
+    await _unrestrict_user(bot, user_id)
+    await chat_member_handler.delete_welcome_msg(bot, user_id)
 
-    if user_input == correct:
-        await message.answer(translator.get_string('verified'))
-        db_man.verify_user(user_id)
-        _answer_by_uid.pop(user_id, None)
-        _did_request_captcha.pop(user_id, None)
-        await _unrestrict_user(bot, user_id)
-        await chat_member_handler.delete_welcome_msg(bot, user_id)
-    else:
-        _attempts_left_by_uid[user_id] -= 1
-        if _attempts_left_by_uid[user_id] > 0:
-            await message.answer(translator.get_string('incorrect'))
-            input_file, hint_key = _get_captcha(user_id)
-            hint_text = translator.get_string(hint_key)
-            await message.answer_photo(input_file, caption=hint_text)
-            os.remove(input_file.path)
-        else:
-            db_man.temp_block(user_id)
-            await message.answer(translator.get_string('temp_block'))
-            _answer_by_uid.pop(user_id, None)
-            _did_request_captcha.pop(user_id, None)
+
+async def session_expiry_task(bot: Bot) -> None:
+    while True:
+        await asyncio.sleep(30)
+        for user_id in session_manager.cleanup_expired():
+            try:
+                await bot.send_message(user_id, translator.get_string('captcha_expired'))
+            except Exception:
+                pass
