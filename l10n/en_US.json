@@ -1,5 +1,5 @@
 {
-	"captcha_link_msg": "To complete the CAPTCHA, click the link below ↓\n{0}\n\nThe link expires in 5 minutes. After completing the CAPTCHA, send the code you receive back here.",
+	"captcha_link_msg": "To complete the CAPTCHA, click the link below ↓\n{0}\n\nThe link expires in 10 minutes. After completing the CAPTCHA, send the code you receive back here.",
 	"captcha_expired": "The CAPTCHA has expired. Send /start to get a new link.",
 	"already_verified": "You are already verified",
 	"no_captcha_requested": "No CAPTCHA was requested. Please send /start",

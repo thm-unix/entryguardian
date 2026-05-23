@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mario CAPTCHA</title>
+    <style>
+        html, body { margin: 0; padding: 0; overflow: hidden; background: #000; }
+        #controls { display: none; }
+        #touch-pad {
+            display: none;
+            background: #1a1a1a;
+            height: 96px;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            box-sizing: border-box;
+        }
+        #left-controls, #right-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .ctrl-btn {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            border: 3px solid rgba(200,200,200,0.6);
+            background: rgba(100,100,100,0.45);
+            color: #fff;
+            font-size: 22px;
+            line-height: 1;
+            cursor: pointer;
+            -webkit-user-select: none;
+            user-select: none;
+            touch-action: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .ctrl-btn:active { background: rgba(160,160,160,0.6); }
+        .ctrl-action { font-size: 15px; font-weight: bold; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <section id="game"></section>
+    <section id="controls"></section>
+    <div id="touch-pad">
+        <div id="left-controls">
+            <button class="ctrl-btn" id="btn-left">&#9664;</button>
+            <button class="ctrl-btn" id="btn-right">&#9654;</button>
+        </div>
+        <div id="right-controls">
+            <button class="ctrl-btn ctrl-action" id="btn-run">B</button>
+            <button class="ctrl-btn ctrl-action" id="btn-jump">A</button>
+        </div>
+    </div>
+    <script src="FullScreenMario.min.js?v=1"></script>
+    <script>
+        (function () {
+            var _params = new URLSearchParams(window.location.search);
+            var _uuid      = _params.get('uuid')      || '';
+            var _challenge = _params.get('challenge') || '';
+
+            var lib = FullScreenMario.FullScreenMario.settings.maps.library;
+            var map = lib['1-1'];
+
+            // Shorten to ~1/4 of original length (original ends at x=1584, cut at x=400)
+            var CUT_X = 400;
+            var CASTLE_X = CUT_X + 48;
+            var creation = map.areas[0].creation;
+            var kept = [];
+            for (var i = 0; i < creation.length; i++) {
+                var item = creation[i];
+                var ix = item.x || 0;
+                if (ix >= CUT_X) continue;
+                var c = {};
+                for (var k in item) c[k] = item[k];
+                if (c.macro === 'Floor' && ix === 0 && c.width > CUT_X) {
+                    c.width = CASTLE_X + 250;
+                }
+                kept.push(c);
+            }
+            kept.push({ macro: 'EndOutsideCastle', x: CASTLE_X, y: 0, transport: { map: '1-2' } });
+            map.areas[0].creation = kept;
+
+            FullScreenMario.FullScreenMario.settings.maps.library = { '1-1': map, '1-2': lib['1-2'] };
+
+            // After flagpole touch: register server-side, then fire gameEnd() after flag animation
+            var _origCollideFlagpole = FullScreenMario.FullScreenMario.prototype.collideFlagpole;
+            FullScreenMario.FullScreenMario.prototype.collideFlagpole = function (a, b) {
+                var result = _origCollideFlagpole.apply(this, arguments);
+                var fsm = a.FSM;
+                if (fsm._captchaDone) return result;
+
+                function scheduleEnd() {
+                    fsm.TimeHandler.addEvent(function () {
+                        if (!fsm._captchaDone) {
+                            fsm._captchaDone = true;
+                            fsm.gameEnd();
+                        }
+                    }, 180);
+                }
+
+                fetch('/api/captcha/' + _uuid + '/kill', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ challenge: _challenge })
+                }).then(function (r) {
+                    if (r.ok) {
+                        scheduleEnd();
+                    }
+                    // If rejected (e.g. timing check failed), game stays frozen at flagpole.
+                    // This only happens to bots — a human player can't reach the flag this fast.
+                }).catch(function () {
+                    // Network error: don't punish the player, proceed anyway
+                    scheduleEnd();
+                });
+
+                return result;
+            };
+
+            // Reload the page on game over so the player can retry
+            var _origGameOver = FullScreenMario.FullScreenMario.prototype.gameOver;
+            FullScreenMario.FullScreenMario.prototype.gameOver = function () {
+                var result = _origGameOver.apply(this, arguments);
+                setTimeout(function () { location.reload(); }, 3000);
+                return result;
+            };
+
+            // --- Touch controls ---
+            // Show the touch pad only on touch-capable devices
+            if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+                document.getElementById('touch-pad').style.display = 'flex';
+            }
+
+            // Dispatch key events via the InputWriter pipe attached to document.body
+            function press(keyCode) {
+                if (document.body.onkeydown) document.body.onkeydown({ keyCode: keyCode });
+            }
+            function release(keyCode) {
+                if (document.body.onkeyup) document.body.onkeyup({ keyCode: keyCode });
+            }
+
+            function bindBtn(id, keyCode) {
+                var btn = document.getElementById(id);
+                btn.addEventListener('touchstart', function (e) {
+                    e.preventDefault();
+                    press(keyCode);
+                }, { passive: false });
+                btn.addEventListener('touchend', function (e) {
+                    e.preventDefault();
+                    release(keyCode);
+                }, { passive: false });
+                btn.addEventListener('touchcancel', function (e) {
+                    e.preventDefault();
+                    release(keyCode);
+                }, { passive: false });
+            }
+
+            bindBtn('btn-left', 37);   // left arrow
+            bindBtn('btn-right', 39);  // right arrow
+            bindBtn('btn-jump', 38);   // up arrow → jump
+            bindBtn('btn-run', 16);    // shift → sprint / fire
+        })();
+    </script>
+</body>
+</html>

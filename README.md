@@ -1,16 +1,28 @@
 # Entry Guardian
 
-Telegram anti-spam bot that gates group entry behind a DOOM captcha. When a new user joins a group, the bot mutes them and sends them a link to play a short DOOM minigame. After killing the required number of enemies the user receives an 8-character code, sends it to the bot, and gets unmuted.
+Telegram anti-spam bot that gates group entry behind a interactive captcha. When a new user joins a group, the bot mutes them and sends them a link to play a short minigame. After completing the challenge the user receives an 8-character code, sends it to the bot, and gets unmuted.
+
+The captcha type is chosen randomly from the enabled types: **DOOM** (shoot N enemies), **Tetris** (place N pieces), or **Mario** (reach the flagpole).
 
 ## How it works
 
 1. A new user joins the group → bot mutes them and posts a welcome message with a button linking to the bot's DM.
 2. The user sends `/start` to the bot in DM → bot replies with a button that opens the captcha page.
-3. The user plays the DOOM minigame in the browser (kills N enemies).
+3. The user completes the minigame in the browser (one of DOOM / Tetris / Mario, chosen at random).
 4. On completion the page shows an 8-character code.
 5. The user sends the code to the bot → bot verifies it, unmutes the user in all pending chats, and deletes the welcome message.
 
-Sessions expire after 5 minutes. Failed code attempts are limited; too many wrong attempts result in a temporary block.
+Sessions expire after 10 minutes. Failed code attempts are limited; too many wrong attempts result in a temporary block.
+
+## Captcha types
+
+| Type | Task | Anti-bot measures |
+|------|------|-------------------|
+| **DOOM** | Kill N enemies | N kill events with per-kill cooldown + minimum play time |
+| **Tetris** | Place N pieces on target slots | N placement events + minimum play time |
+| **Mario** | Reach the flagpole (shortened 1-1 level) | Flagpole event + minimum time from page load to flagpole (≥ 5 s) |
+
+All types share a common server-side defense: a per-session **challenge token** (generated at page load, required for every API call) and a **minimum play time** check before `/complete` is accepted.
 
 ## Requirements
 
@@ -32,17 +44,26 @@ WEB_HOST=0.0.0.0
 WEB_PORT=8080
 CAPTCHA_BASE_URL=https://yourdomain.com/captcha
 
-# Captcha difficulty
-CAPTCHA_ENEMIES=4        # enemies the player must kill
-CAPTCHA_TIMEOUT=300      # session lifetime in seconds
-MIN_PLAY_TIME=3.0        # minimum seconds the page must be open before completion is accepted
-KILL_COOLDOWN=0.5        # minimum seconds between registered kills (prevents scripted rapid kills)
+# Which captcha types to use (chosen randomly per session)
+CAPTCHA_TYPES=doom,tetris,mario
+
+# Session lifetime
+CAPTCHA_TIMEOUT=600       # seconds (default 10 min)
+
+# General anti-bot timing
+MIN_PLAY_TIME=3.0         # minimum seconds page must be open before /complete is accepted
+KILL_COOLDOWN=0.5         # minimum seconds between registered kill events (doom)
+
+# Per-type difficulty
+CAPTCHA_ENEMIES=4         # DOOM: enemies the player must kill
+CAPTCHA_MIN_PIECES=3      # Tetris: pieces the player must place
+MARIO_MIN_PLAY_TIME=5.0   # Mario: minimum seconds from page load to flagpole event
 
 # Bot behaviour
-MAX_ATTEMPTS=3           # wrong code attempts before temp block
-COOL_DOWN=900            # temp block duration in seconds
+MAX_ATTEMPTS=3            # wrong code attempts before temp block
+COOL_DOWN=900             # temp block duration in seconds
 LOCALE=ru_RU
-BLOCKLIST=               # comma-separated Telegram user IDs to permanently ban on join
+BLOCKLIST=                # comma-separated Telegram user IDs to permanently ban on join
 ```
 
 ## Running with Docker
@@ -68,6 +89,14 @@ location /api/captcha/ {
 
 location /doom/ {
     proxy_pass http://127.0.0.1:8080/doom/;
+}
+
+location /tetris/ {
+    proxy_pass http://127.0.0.1:8080/tetris/;
+}
+
+location /mario/ {
+    proxy_pass http://127.0.0.1:8080/mario/;
 }
 ```
 
@@ -100,13 +129,17 @@ entryguardian/
 ├── reaction_handler.py       # reaction events
 ├── dbmanager.py              # SQLite: verified users, pending chats
 ├── translator.py             # locale string loader
-├── captcha.html              # DOOM minigame (served under /doom/)
+├── captcha.html              # DOOM minigame page (served under /doom/)
+├── tetris_captcha.html       # Tetris minigame page (served under /tetris/)
+├── tetris_captcha.js         # Tetris game logic
+├── mario_captcha.html        # Mario minigame page (served under /mario/)
+├── FullScreenMario.min.js    # FullScreenMario engine (served under /mario/)
 ├── templates/
 │   └── captcha_wrapper.html  # outer page that hosts the game iframe
 ├── l10n/
 │   ├── ru_RU.json            # Russian locale strings
 │   └── en_US.json            # English locale strings
-├── static/                   # game assets (sprites, sounds)
+├── static/                   # DOOM game assets (sprites, sounds)
 ├── Dockerfile
 └── docker-compose.yml
 ```

@@ -20,12 +20,29 @@ def _get_wrapper_template() -> str:
     return _wrapper_template
 
 
-def _captcha_page_html(session_id: str, challenge: str) -> str:
+def _captcha_page_html(session_id: str, challenge: str, captcha_type: str) -> str:
+    iframe_style = ''
+    if captcha_type == 'tetris':
+        iframe_src = f'/tetris/tetris_captcha.html?uuid={session_id}&challenge={challenge}'
+        iframe_w, iframe_h = '380', '620'
+    elif captcha_type == 'mario':
+        iframe_src = f'/mario/mario_captcha.html?uuid={session_id}&challenge={challenge}'
+        iframe_w, iframe_h = '100%', '580'
+        iframe_style = 'max-width:560px'
+    else:
+        iframe_src = (
+            f'/doom/captcha.html?enemies={config.CAPTCHA_ENEMIES}'
+            f'&uuid={session_id}&challenge={challenge}'
+        )
+        iframe_w, iframe_h = '300', '150'
     return (
         _get_wrapper_template()
         .replace('__UUID__', session_id)
         .replace('__CHALLENGE__', challenge)
-        .replace('__ENEMIES__', str(config.CAPTCHA_ENEMIES))
+        .replace('__IFRAME_SRC__', iframe_src)
+        .replace('__IFRAME_WIDTH__', iframe_w)
+        .replace('__IFRAME_HEIGHT__', iframe_h)
+        .replace('__IFRAME_STYLE__', iframe_style)
     )
 
 
@@ -38,7 +55,7 @@ _ERROR_HTML = (
 )
 
 _COMPLETED_HTML_TMPL = (
-    '<!DOCTYPE html><html lang="ru"><head><title>DOOM Captcha</title>'
+    '<!DOCTYPE html><html lang="ru"><head><title>Captcha</title>'
     '<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">'
     '<style>'
     '* {{ box-sizing: border-box; margin: 0; padding: 0; }}'
@@ -73,7 +90,8 @@ async def handle_captcha_page(request: web.Request) -> web.Response:
         html = _COMPLETED_HTML_TMPL.format(code=session['code'])
         return web.Response(text=html, content_type='text/html')
     challenge = session_manager.set_page_loaded(session_id)
-    return web.Response(text=_captcha_page_html(session_id, challenge), content_type='text/html')
+    captcha_type = session.get('captcha_type', 'doom')
+    return web.Response(text=_captcha_page_html(session_id, challenge, captcha_type), content_type='text/html')
 
 
 async def handle_kill(request: web.Request) -> web.Response:
@@ -110,7 +128,10 @@ async def handle_doom_file(request: web.Request) -> web.FileResponse:
         raise web.HTTPForbidden()
     if not os.path.isfile(full_path):
         raise web.HTTPNotFound()
-    return web.FileResponse(full_path)
+    headers = {}
+    if full_path.endswith(('.js', '.html')):
+        headers['Cache-Control'] = 'no-store'
+    return web.FileResponse(full_path, headers=headers)
 
 
 def create_app() -> web.Application:
@@ -119,6 +140,8 @@ def create_app() -> web.Application:
     app.router.add_post('/api/captcha/{uuid}/kill', handle_kill)
     app.router.add_post('/api/captcha/{uuid}/complete', handle_complete)
     app.router.add_get('/doom/{path:.*}', handle_doom_file)
+    app.router.add_get('/tetris/{path:.*}', handle_doom_file)
+    app.router.add_get('/mario/{path:.*}', handle_doom_file)
     return app
 
 

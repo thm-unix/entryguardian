@@ -23,6 +23,7 @@ import chat_member_handler
 import session_manager
 import config
 import asyncio
+import random
 
 router = Router()
 db_man = DBManager()
@@ -86,7 +87,8 @@ async def start_handler(message: types.Message) -> None:
         await message.answer(text, reply_markup=markup)
         return
 
-    session_id = session_manager.create_session(user_id)
+    captcha_type = random.choice(config.CAPTCHA_TYPES)
+    session_id = session_manager.create_session(user_id, captcha_type)
     _attempts_left[user_id] = config.MAX_ATTEMPTS
     text, markup = _build_link_msg(session_id)
     await message.answer(text, reply_markup=markup)

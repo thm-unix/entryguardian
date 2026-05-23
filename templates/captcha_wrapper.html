@@ -1,11 +1,17 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
-    <title>DOOM Captcha</title>
+    <title>Captcha</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
         body {
             background: #111;
             display: flex;
@@ -17,15 +23,19 @@
             color: #eee;
             gap: 16px;
         }
+
         h2 {
             color: #ff4444;
             font-size: 1.3rem;
             letter-spacing: 2px;
         }
+
         iframe {
             border: 2px solid #444;
             display: block;
+            max-width: 100%;
         }
+
         #result {
             display: none;
             text-align: center;
@@ -34,11 +44,13 @@
             border: 2px solid #33aa33;
             border-radius: 4px;
         }
+
         #result p {
             margin-bottom: 10px;
             font-size: 1rem;
             color: #ccc;
         }
+
         #code-box {
             background: #000;
             border: 2px solid #33ff33;
@@ -50,6 +62,7 @@
             margin: 12px 0;
             font-family: 'Courier New', monospace;
         }
+
         #hint {
             font-size: 0.85rem;
             color: #888;
@@ -57,13 +70,11 @@
         }
     </style>
 </head>
+
 <body>
     <h2>CAPTCHA</h2>
-    <iframe id="frame"
-            src="/doom/captcha.html?enemies=__ENEMIES__&uuid=__UUID__&challenge=__CHALLENGE__"
-            width="300" height="150"
-            scrolling="no"
-            frameborder="0"></iframe>
+    <iframe id="frame" src="__IFRAME_SRC__" width="__IFRAME_WIDTH__" height="__IFRAME_HEIGHT__" style="__IFRAME_STYLE__" scrolling="auto"
+        frameborder="0"></iframe>
     <div id="result">
         <p>&#x2705; Капча пройдена!</p>
         <p>Отправьте этот код боту:</p>
@@ -74,25 +85,43 @@
         var uuid = '__UUID__';
         var challenge = '__CHALLENGE__';
         var done = false;
-        window.addEventListener('message', function(e) {
+        window.addEventListener('message', function (e) {
             if (done) return;
             if (e.origin !== window.location.origin) return;
-            if (!e.data || e.data.type !== 'doom_complete') return;
+            if (!e.data) return;
+
+            // Tetris: iframe called /complete itself and put the code in the message
+            if (e.data.type === 'doom_complete' && e.data.code) {
+                done = true;
+                document.getElementById('frame').style.display = 'none';
+                document.getElementById('code-box').textContent = e.data.code;
+                document.getElementById('result').style.display = 'block';
+                document.getElementById('result').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                return;
+            }
+
+            // Doom (type=doom_complete, no code) or Mario (event=levelComplete)
+            var isDoom = (e.data.type === 'doom_complete');
+            var isMario = (e.data.event === 'levelComplete');
+            if (!isDoom && !isMario) return;
             done = true;
+
             fetch('/api/captcha/' + uuid + '/complete', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ challenge: challenge })
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({challenge: challenge})
             })
-                .then(function(r) { return r.json(); })
-                .then(function(data) {
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
                     if (data.code) {
                         document.getElementById('frame').style.display = 'none';
                         document.getElementById('code-box').textContent = data.code;
                         document.getElementById('result').style.display = 'block';
+                        document.getElementById('result').scrollIntoView({ behavior: 'smooth', block: 'center' });
                     }
                 });
         });
     </script>
 </body>
+
 </html>

@@ -14,7 +14,7 @@ def _generate_code() -> str:
     return ''.join(secrets.choice(_CODE_CHARS) for _ in range(_CODE_LEN))
 
 
-def create_session(user_id: int) -> str:
+def create_session(user_id: int, captcha_type: str = 'doom') -> str:
     session_id = str(uuid_module.uuid4())
     sessions[session_id] = {
         'user_id': user_id,
@@ -25,6 +25,7 @@ def create_session(user_id: int) -> str:
         'page_loaded_at': None,
         'kills_registered': 0,
         'last_kill_at': 0.0,
+        'captcha_type': captcha_type,
     }
     return session_id
 
@@ -56,18 +57,35 @@ def get_pending_session(user_id: int) -> str | None:
     return None
 
 
+def _required_interactions(session: dict) -> int:
+    t = session.get('captcha_type')
+    if t == 'tetris':
+        return config.CAPTCHA_MIN_PIECES
+    if t == 'mario':
+        return 1
+    return config.CAPTCHA_ENEMIES
+
+
 def register_kill(session_id: str, challenge: str) -> bool:
-    """Register one enemy kill server-side. Enforces cooldown and challenge validation."""
+    """Register one enemy kill / piece placement server-side."""
     session = sessions.get(session_id)
     if not session or is_expired(session_id) or session['completed']:
         return False
     if session.get('challenge') != challenge:
         return False
-    if session['kills_registered'] >= config.CAPTCHA_ENEMIES:
+    if session['kills_registered'] >= _required_interactions(session):
         return False
     now = time.time()
-    if now - session['last_kill_at'] < config.KILL_COOLDOWN:
-        return False
+    captcha_type = session.get('captcha_type')
+    # Tetris pieces can only be placed once each — no cooldown needed
+    if captcha_type != 'tetris':
+        if now - session['last_kill_at'] < config.KILL_COOLDOWN:
+            return False
+    # Mario: flagpole must be reached at least MARIO_MIN_PLAY_TIME seconds after page load
+    if captcha_type == 'mario':
+        page_loaded_at = session.get('page_loaded_at') or 0
+        if now - page_loaded_at < config.MARIO_MIN_PLAY_TIME:
+            return False
     session['kills_registered'] += 1
     session['last_kill_at'] = now
     return True
@@ -85,7 +103,7 @@ def complete_session(session_id: str, challenge: str) -> str | None:
     page_loaded_at = session.get('page_loaded_at') or 0
     if time.time() - page_loaded_at < config.MIN_PLAY_TIME:
         return None
-    if session['kills_registered'] < config.CAPTCHA_ENEMIES:
+    if session['kills_registered'] < _required_interactions(session):
         return None
     code = _generate_code()
     session['completed'] = True

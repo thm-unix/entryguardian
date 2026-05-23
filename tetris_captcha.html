@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tetris CAPTCHA</title>
+    <style>
+        :root {
+            --bg: #111;
+            --border: #2e3147;
+            --text: #e2e4ef;
+            --muted: #8890b5;
+            --accent: #58a6ff;
+            --success: #3fb950;
+            --danger: #f85149;
+        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px 8px;
+            overflow-x: hidden;
+        }
+        .hint {
+            font-size: 0.8rem;
+            color: var(--muted);
+            text-align: center;
+            margin-bottom: 8px;
+            min-height: 18px;
+        }
+        .captcha-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+        }
+        .pieces-panel {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            max-width: 380px;
+        }
+        .piece-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+        }
+        .piece-canvas {
+            cursor: grab;
+            border-radius: 4px;
+            border: 2px solid transparent;
+            transition: border-color .15s, box-shadow .15s;
+            display: block;
+        }
+        .piece-canvas:hover {
+            border-color: var(--accent);
+            box-shadow: 0 0 10px rgba(88,166,255,0.3);
+        }
+        .piece-canvas.dragging { opacity: 0.4; }
+        .drag-ghost {
+            position: fixed;
+            pointer-events: none;
+            z-index: 1500;
+            opacity: 0.85;
+        }
+        #boardCanvas { display: block; border-radius: 4px; }
+        .captcha-feedback {
+            text-align: center;
+            min-height: 20px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            padding: 4px 0;
+        }
+        .captcha-feedback.fail { color: var(--danger); }
+        .captcha-feedback.ok   { color: var(--success); }
+    </style>
+</head>
+<body>
+    <div class="captcha-area">
+        <div class="pieces-panel" id="piecesPanelTop"></div>
+        <p class="hint" id="captchaHint">Поставьте фигуры на свои места</p>
+        <canvas id="boardCanvas"></canvas>
+        <div class="pieces-panel" id="piecesPanelBottom"></div>
+    </div>
+    <div class="captcha-feedback" id="captchaFeedback"></div>
+    <script src="tetris_captcha.js?v=3"></script>
+</body>
+</html>
