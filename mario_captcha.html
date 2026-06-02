@@ -63,6 +63,11 @@
             var _uuid      = _params.get('uuid')      || '';
             var _challenge = _params.get('challenge') || '';
 
+            // Disable audio network requests — FSM loads ~84 files eagerly, which kills mobile.
+            // Setting fileTypes=[] keeps the library intact (so sound lookups don't throw) but
+            // createAudio() builds elements with no <source> children → zero fetches.
+            FullScreenMario.FullScreenMario.settings.audio.fileTypes = [];
+
             var lib = FullScreenMario.FullScreenMario.settings.maps.library;
             var map = lib['1-1'];
 

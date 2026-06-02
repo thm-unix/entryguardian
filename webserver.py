@@ -25,16 +25,19 @@ def _captcha_page_html(session_id: str, challenge: str, captcha_type: str) -> st
     if captcha_type == 'tetris':
         iframe_src = f'/tetris/tetris_captcha.html?uuid={session_id}&challenge={challenge}'
         iframe_w, iframe_h = '380', '620'
+        captcha_desc = f'Расставь {config.CAPTCHA_MIN_PIECES} фигуры по отмеченным клеткам'
     elif captcha_type == 'mario':
         iframe_src = f'/mario/mario_captcha.html?uuid={session_id}&challenge={challenge}'
         iframe_w, iframe_h = '100%', '580'
         iframe_style = 'max-width:560px'
+        captcha_desc = 'Добеги до флагштока в конце уровня'
     else:
         iframe_src = (
             f'/doom/captcha.html?enemies={config.CAPTCHA_ENEMIES}'
             f'&uuid={session_id}&challenge={challenge}'
         )
         iframe_w, iframe_h = '300', '150'
+        captcha_desc = f'Убей {config.CAPTCHA_ENEMIES} врагов, чтобы пройти проверку'
     return (
         _get_wrapper_template()
         .replace('__UUID__', session_id)
@@ -43,6 +46,7 @@ def _captcha_page_html(session_id: str, challenge: str, captcha_type: str) -> st
         .replace('__IFRAME_WIDTH__', iframe_w)
         .replace('__IFRAME_HEIGHT__', iframe_h)
         .replace('__IFRAME_STYLE__', iframe_style)
+        .replace('__CAPTCHA_DESC__', captcha_desc)
     )
 
 
